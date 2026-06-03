@@ -1,0 +1,6 @@
+kagglehub==0.3.13
+numpy
+pandas
+torchvision
+Pillow
+tqdm
