@@ -6,7 +6,7 @@ The Vocabulary class:
   * tokenizes raw caption strings,
   * builds a word <-> index mapping from the training captions
     (rare words below a frequency threshold are dropped and later mapped
-    to <unk>),
+     to <unk>),
   * converts captions into lists of integer indices for the model.
 
 Run this file directly to build the vocabulary from the dataset and save it:
@@ -27,8 +27,8 @@ from config import (
     START_TOKEN,
     END_TOKEN,
     UNK_TOKEN,
-    CAPTIONS_FILE,
     OUTPUT_DIR,
+    get_captions_file,
 )
 
 
@@ -105,8 +105,8 @@ class Vocabulary:
     def decode(self, indices) -> str:
         """Turn a list of indices back into a readable string.
 
-        Special tokens are skipped, which is handy for printing generated
-        captions during evaluation.
+        Special tokens (<pad>, <start>, <end>) are skipped, which is handy for
+        printing generated captions during evaluation. <unk> is kept visible.
         """
         special = {self.pad_idx, self.start_idx, self.end_idx}
         words = [self.itos[i] for i in indices if i not in special]
@@ -128,7 +128,7 @@ def build_and_save_vocabulary(save_path=None) -> Vocabulary:
     if save_path is None:
         save_path = OUTPUT_DIR / "vocab.pkl"
 
-    captions_df = pd.read_csv(CAPTIONS_FILE)
+    captions_df = pd.read_csv(get_captions_file())
 
     vocab = Vocabulary()
     vocab.build_vocabulary(captions_df["caption"].tolist())
