@@ -6,15 +6,20 @@ All paths, hyperparameters and environment settings live here so that the rest
 of the code (dataset, model, training, evaluation) stays clean and the project
 runs identically on a laptop, GitHub Codespaces, Google Colab or Kaggle.
 
-Import what you need elsewhere, e.g.:
-    from config import IMAGES_DIR, CAPTIONS_FILE, DEVICE, EMBED_SIZE
+Static settings (tokens, hyperparameters, thresholds) are plain constants.
+Dataset paths are resolved LAZILY via get_data_dir() / get_images_dir() /
+get_captions_file(), so simply importing this module never triggers the ~1GB
+download — only calling those functions does. This keeps imports and unit
+tests fast.
+
+    from config import EMBED_SIZE, DEVICE, get_captions_file
 """
 
 from pathlib import Path
 import torch
 
 # ---------------------------------------------------------------------------
-# Dataset location
+# Dataset location (resolved lazily — importing config does NOT download)
 # ---------------------------------------------------------------------------
 # The Flickr8k dataset lives on Kaggle. `kagglehub` downloads it once, caches
 # it locally, and returns the same path on every environment. If you are on
@@ -22,17 +27,33 @@ import torch
 # "/kaggle/input/flickr8k" to skip the download.
 DATA_DIR_OVERRIDE = None  # e.g. "/kaggle/input/flickr8k"
 
-
-def _resolve_data_dir() -> Path:
-    if DATA_DIR_OVERRIDE is not None:
-        return Path(DATA_DIR_OVERRIDE)
-    import kagglehub
-    return Path(kagglehub.dataset_download("adityajn105/flickr8k"))
+_data_dir_cache = None
 
 
-DATA_DIR = _resolve_data_dir()
-IMAGES_DIR = DATA_DIR / "Images"
-CAPTIONS_FILE = DATA_DIR / "captions.txt"
+def get_data_dir() -> Path:
+    """Return the dataset root, downloading via kagglehub on the first call.
+
+    The result is cached, so repeated calls are free. Importing config does
+    not call this — the download happens the first time you actually need the
+    data (e.g. when building the vocab or the dataset).
+    """
+    global _data_dir_cache
+    if _data_dir_cache is None:
+        if DATA_DIR_OVERRIDE is not None:
+            _data_dir_cache = Path(DATA_DIR_OVERRIDE)
+        else:
+            import kagglehub
+            _data_dir_cache = Path(kagglehub.dataset_download("adityajn105/flickr8k"))
+    return _data_dir_cache
+
+
+def get_images_dir() -> Path:
+    return get_data_dir() / "Images"
+
+
+def get_captions_file() -> Path:
+    return get_data_dir() / "captions.txt"
+
 
 # ---------------------------------------------------------------------------
 # Output location (checkpoints, saved vocab, generated captions)
