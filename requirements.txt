@@ -1,6 +1,18 @@
+# Core
 kagglehub==0.3.13
 numpy
 pandas
+
+# Deep learning
+torch
 torchvision
+
+# Image handling
 Pillow
+
+# Evaluation & visualisation
+nltk          # BLEU score for caption evaluation
+matplotlib    # display images alongside generated captions
+
+# Utilities
 tqdm
