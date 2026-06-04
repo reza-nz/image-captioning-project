@@ -16,3 +16,6 @@ matplotlib    # display images alongside generated captions
 
 # Utilities
 tqdm
+
+# Testing
+pytest
