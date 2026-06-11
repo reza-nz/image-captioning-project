@@ -67,8 +67,11 @@ CHECKPOINT_DIR.mkdir(exist_ok=True)
 # ---------------------------------------------------------------------------
 # Device
 # ---------------------------------------------------------------------------
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+DEVICE = torch.device(
+    "cuda" if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() # Apple Silicon GPU support (e.g. on M1/2/3... Macs)
+    else "cpu"
+)
 # ---------------------------------------------------------------------------
 # Image preprocessing (matches the ResNet-compatible transform from Section A)
 # ---------------------------------------------------------------------------
