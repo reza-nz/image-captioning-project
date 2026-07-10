@@ -18,6 +18,8 @@ Run:
     python train.py
 """
 
+import csv
+
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -27,6 +29,7 @@ from config import (
     LEARNING_RATE,
     NUM_EPOCHS,
     CHECKPOINT_DIR,
+    OUTPUT_DIR,
 )
 from dataset import get_data_loaders
 from model import CaptioningModel
@@ -125,6 +128,7 @@ def main():
     optimizer = torch.optim.Adam(trainable_params, lr=LEARNING_RATE)
 
     best_val_loss = float("inf")
+    history = []  # (epoch, train_loss, val_loss) -> written to history.csv for plotting
 
     for epoch in range(1, NUM_EPOCHS + 1):
         train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
@@ -133,6 +137,8 @@ def main():
         print(f"Epoch {epoch:02d}/{NUM_EPOCHS}  "
               f"train loss: {train_loss:.4f}  val loss: {val_loss:.4f}")
 
+        history.append((epoch, train_loss, val_loss))
+
         save_checkpoint(model, CHECKPOINT_DIR / "last.pt", epoch, val_loss)
 
         if val_loss < best_val_loss:
@@ -140,7 +146,15 @@ def main():
             save_checkpoint(model, CHECKPOINT_DIR / "best.pt", epoch, val_loss)
             print(f"  -> new best model saved (val loss {val_loss:.4f})")
 
+    # Save the loss history so make_figures.py can plot the training curves.
+    history_path = OUTPUT_DIR / "history.csv"
+    with open(history_path, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(["epoch", "train_loss", "val_loss"])
+        writer.writerows(history)
+
     print(f"\nTraining done. Best validation loss: {best_val_loss:.4f}")
+    print(f"Loss history saved to: {history_path}")
     print(f"Checkpoints saved in: {CHECKPOINT_DIR}")
 
 
