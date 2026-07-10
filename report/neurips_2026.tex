@@ -44,8 +44,9 @@
 % 7. Education Track
 % \usepackage[education, final]{neurips_2026}
 
-% "preprint" option is used for arXiv or other preprint submissions
-\usepackage[preprint]{neurips_2026}
+% Use final mode for the course report so the rendered PDF does not show
+% the preprint footer text.
+\usepackage[main, final]{neurips_2026}
 
 % to avoid loading the natbib package, add option nonatbib:
 %    \usepackage[nonatbib]{neurips_2026}
@@ -61,6 +62,10 @@
 \usepackage{microtype}      % microtypography
 \usepackage{xcolor}         % colors
 \usepackage{graphicx}
+\hypersetup{hidelinks}
+\makeatletter
+\renewcommand{\@noticestring}{}
+\makeatother
 
 % Note. For the workshop paper template, both \title{} and \workshoptitle{} are required, with the former indicating the paper title shown in the title and the latter indicating the workshop title displayed in the footnote. 
 \title{Report for Project 5: Image Captioning with a CNN--LSTM Encoder--Decoder\\
@@ -106,7 +111,7 @@ word at a time, conditioned on that vector. The system is trained on Flickr8k
 (8{,}091 images, 40{,}455 captions) with teacher forcing and a cross-entropy
 objective that ignores padding positions, and evaluated with corpus BLEU-1
 through BLEU-4 against five human reference captions per image. Our model
-achieves a BLEU-1 of \textbf{0.543} and a BLEU-4 of \textbf{0.138} on a
+achieves a BLEU-1 of \textbf{0.580} and a BLEU-4 of \textbf{0.172} on a
 held-out test split constructed \emph{by image} to eliminate data leakage. We
 present a qualitative analysis of success and failure cases, and a discussion
 connecting each observed weakness to a concrete architectural cause: rare words
@@ -233,7 +238,7 @@ A ResNet-50 with ImageNet weights has its final classification layer removed. Th
   \mathbf{b}_{\text{proj}} \right), \qquad
   \mathbf{W}_{\text{proj}} \in \mathbb{R}^{256 \times 2048}.
 \end{equation}
-The backbone is \textbf{frozen}: $\approx$\textbf{2.2M trainable} vs $\approx$\textbf{23.5M frozen} parameters.
+The backbone is \textbf{frozen}: $\approx$\textbf{4.4M trainable} vs $\approx$\textbf{23.5M frozen} parameters.
 
 \subsubsection{Decoder: LSTM language model}
 
@@ -288,7 +293,7 @@ parameters only. Full hyperparameters are in Table~\ref{tab:hyperparams}.
     Epochs               & 20 \\
     Train / Val / Test   & 80 / 10 / 10, split by image \\
     Random seed          & 42 \\
-    Trainable params     & $\approx 2.2$M \\
+    Trainable params     & $\approx 4.4$M \\
     Frozen params        & $\approx 23.5$M \\
     \bottomrule
   \end{tabular}
@@ -337,7 +342,7 @@ Table~\ref{tab:bleu} reports corpus BLEU on the held-out test split.
     Model & BLEU-1 & BLEU-2 & BLEU-3 & BLEU-4 \\
     \midrule
     \textbf{Ours} (frozen ResNet-50 + LSTM, greedy)
-      & \textbf{0.543} & \textbf{0.351} & \textbf{0.221} & \textbf{0.138} \\
+      & \textbf{0.580} & \textbf{0.395} & \textbf{0.261} & \textbf{0.172} \\
     \midrule
     Show and Tell / Google NIC, as reported by \citet{xu2015show} & 0.63 & 0.41 & 0.27 & --- \\
     Soft attention \citep{xu2015show}     & 0.67 & 0.448 & 0.299 & 0.195 \\
@@ -383,7 +388,7 @@ incorrect captions when the scene requires finer visual grounding.
 \subsubsection{What works}
 
 The model produces fluent and broadly relevant captions for common scenes.
-Freezing the backbone makes training fast and stable: only $\approx 8\%$ of
+Freezing the backbone makes training fast and stable: only $\approx 16\%$ of
 parameters receive gradients, which acts as a strong regulariser on 6{,}500
 training images.
 
@@ -422,8 +427,8 @@ claims.
 \section{Conclusion and future work}
 
 We implemented, trained and evaluated a complete CNN--LSTM image captioning
-system on Flickr8k. The system achieves a BLEU-1 of \textbf{0.543} and a
-BLEU-4 of \textbf{0.138}, producing fluent captions for common scenes while
+system on Flickr8k. The system achieves a BLEU-1 of \textbf{0.580} and a
+BLEU-4 of \textbf{0.172}, producing fluent captions for common scenes while
 remaining generic on unusual ones. The most impactful next steps are:
 \begin{itemize}
   \item \textbf{Attention} \citep{xu2015show} to remove the single-vector bottleneck.
