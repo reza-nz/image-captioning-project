@@ -1,26 +1,22 @@
 """
 make_figures.py
-Produce everything the report needs AND patch report.tex, in one command.
+Produce report figures and a metric summary in one command.
 
 Run AFTER training:
     python train.py        # writes outputs/history.csv + checkpoints
-    python make_figures.py # writes figures AND patches report.tex automatically
+    python make_figures.py # writes figures and a results summary
 
 What this script does:
   1. Plots the training / validation loss curve  -> loss_curve.png
   2. Generates a qualitative 2x3 image grid      -> qualitative_examples.png
   3. Computes BLEU-1..4 on the test set
-  4. Patches report.tex in-place, replacing every [TODO] with real values,
-     uncomments the includegraphics lines, and removes the Ablation section.
-  5. Writes a summary to results_summary.txt for reference.
+  4. Writes a summary to results_summary.txt for reference.
 
-After running, open Overleaf, upload the two .png files next to report.tex,
-then fill in author names and Division of Work, and compile.
+After running, copy the generated values/figures into report/neurips_2026.tex
+if the report needs to be refreshed, then compile the PDF.
 """
 
 import csv
-import re
-import shutil
 import textwrap
 from pathlib import Path
 
@@ -44,9 +40,6 @@ from evaluate import (
 
 ASSETS_DIR = OUTPUT_DIR / "report_assets"
 ASSETS_DIR.mkdir(exist_ok=True)
-
-PROJECT_ROOT = OUTPUT_DIR.parent
-REPORT_TEX = PROJECT_ROOT / "report" / "report.tex"
 
 TEAL = "#0D9488"
 NAVY = "#0F2A43"
@@ -168,145 +161,6 @@ def plot_qualitative_grid(image_names, references, hypotheses, images_dir,
 
 
 # ---------------------------------------------------------------------------
-# Patch report.tex in-place
-# ---------------------------------------------------------------------------
-def patch_report(loss_stats, scores, success_descs, failure_descs):
-    if not REPORT_TEX.exists():
-        print(f"SKIP patching: {REPORT_TEX} not found.")
-        return
-
-    backup = REPORT_TEX.with_suffix(".tex.bak")
-    if not backup.exists():
-        shutil.copy(REPORT_TEX, backup)
-        print(f"Backup saved to {backup}")
-
-    text = REPORT_TEX.read_text(encoding="utf-8")
-
-    b1 = f"{scores['BLEU-1']:.3f}"
-    b2 = f"{scores['BLEU-2']:.3f}"
-    b3 = f"{scores['BLEU-3']:.3f}"
-    b4 = f"{scores['BLEU-4']:.3f}"
-
-    # -- Abstract -------------------------------------------------------
-    text = text.replace(
-        r"a BLEU-1 of \textbf{[TODO]} and a BLEU-4 of \textbf{[TODO]} on a",
-        rf"a BLEU-1 of \textbf{{{b1}}} and a BLEU-4 of \textbf{{{b4}}} on a",
-    )
-
-    # -- Section 6.1 loss numbers ---------------------------------------
-    if loss_stats:
-        fl = f"{loss_stats['first_train_loss']:.4f}"
-        ll = f"{loss_stats['last_train_loss']:.4f}"
-        bv = f"{loss_stats['best_val_loss']:.4f}"
-        be = str(loss_stats["best_epoch"])
-        tr = loss_stats["trend_phrase"]
-
-        text = text.replace(
-            r"approximately \textbf{[TODO]} at epoch~1 to \textbf{[TODO]} at epoch~20",
-            rf"approximately \textbf{{{fl}}} at epoch~1 to \textbf{{{ll}}} at epoch~20",
-        )
-        text = text.replace(
-            r"minimum of \textbf{[TODO]} at epoch~\textbf{[TODO]}",
-            rf"minimum of \textbf{{{bv}}} at epoch~\textbf{{{be}}}",
-        )
-        text = text.replace(
-            r"\textbf{[TODO: plateaus / begins to increase, indicating the onset of overfitting]}",
-            tr,
-        )
-
-    # -- Figure 1: uncomment includegraphics, remove fbox ---------------
-    text = re.sub(
-        r"  % \\includegraphics\[width=0\.7\\textwidth\]\{loss_curve\.png\}",
-        r"  \\includegraphics[width=0.7\\textwidth]{loss_curve.png}",
-        text,
-    )
-    text = re.sub(
-        r"\s*\\fbox\{\\parbox\[c\]\[4\.5cm\]\[c\]\{0\.7\\textwidth\}\{\\centering"
-        r".*?\\textbf\{\[TODO: insert \\texttt\{loss_curve\.png\}\]\}.*?\}\}",
-        "",
-        text,
-        flags=re.DOTALL,
-    )
-
-    # -- Table 3: BLEU row ----------------------------------------------
-    bleu_row = (
-        rf"    \textbf{{Ours}} (frozen ResNet-50 + LSTM, greedy) & "
-        rf"\textbf{{{b1}}} & \textbf{{{b2}}} & \textbf{{{b3}}} & \textbf{{{b4}}} \\"
-    )
-    text = re.sub(
-        r"    \\textbf\{Ours\}.*?\\\\",
-        bleu_row,
-        text,
-        count=1,
-        flags=re.DOTALL,
-    )
-
-    # -- Remove ablation section (no second training run) ---------------
-    text = re.sub(
-        r"\\subsection\{Ablation: The Effect of Freezing the Backbone\}.*?"
-        r"(?=\\subsection\{Qualitative Results\})",
-        "",
-        text,
-        flags=re.DOTALL,
-    )
-
-    # -- Figure 2: uncomment includegraphics, remove fbox ---------------
-    text = re.sub(
-        r"  % \\includegraphics\[width=0\.85\\textwidth\]\{qualitative_examples\.png\}",
-        r"  \\includegraphics[width=0.85\\textwidth]{qualitative_examples.png}",
-        text,
-    )
-    text = re.sub(
-        r"\s*\\fbox\{\\parbox\[c\]\[5\.5cm\]\[c\]\{0\.85\\textwidth\}\{\\centering"
-        r".*?\\textbf\{\[TODO: insert \\texttt\{qualitative_examples\.png\}\]\}.*?\}\}",
-        "",
-        text,
-        flags=re.DOTALL,
-    )
-    text = re.sub(
-        r"\\emph\{Bottom row:\} failure cases\. \\textbf\{\[TODO: describe each\]\}",
-        r"\\emph{Bottom row:} characteristic failure cases.",
-        text,
-    )
-
-    # -- Qualitative paragraphs -----------------------------------------
-    success_text = (
-        "The model reliably identifies the dominant subject and its action in "
-        "canonical scenes, producing grammatically well-formed and semantically "
-        "relevant captions. "
-        + " ".join(success_descs)
-    )
-    failure_text = (
-        "Failure cases are systematic and trace back to specific architectural "
-        "constraints rather than random errors. "
-        + " ".join(failure_descs)
-    )
-
-    text = re.sub(
-        r"\\paragraph\{Successes\.\}\s*\\textbf\{\[TODO:.*?\]\}",
-        r"\\paragraph{Successes.}\n" + success_text,
-        text,
-        flags=re.DOTALL,
-    )
-    text = re.sub(
-        r"\\paragraph\{Failures\.\}\s*\\textbf\{\[TODO:.*?\]\}",
-        r"\\paragraph{Failures.}\n" + failure_text,
-        text,
-        flags=re.DOTALL,
-    )
-
-    # -- Conclusion: replace BLEU numbers again -------------------------
-    text = re.sub(
-        r"a BLEU-1 of \\textbf\{\[TODO\]\} and a BLEU-4 of \\textbf\{\[TODO\]\},",
-        rf"a BLEU-1 of \\textbf{{{b1}}} and a BLEU-4 of \\textbf{{{b4}}},",
-        text,
-    )
-
-    REPORT_TEX.write_text(text, encoding="utf-8")
-    print(f"Patched {REPORT_TEX}")
-
-
-# ---------------------------------------------------------------------------
 # Summary file
 # ---------------------------------------------------------------------------
 def write_summary(loss_stats, scores, n_test_images):
@@ -361,19 +215,15 @@ def main():
     list_of_references, list_of_hypotheses = align(references, hypotheses)
     scores = compute_bleu(list_of_references, list_of_hypotheses)
 
-    success_descs, failure_descs = plot_qualitative_grid(
+    plot_qualitative_grid(
         image_names, references, hypotheses, images_dir
     )
 
-    patch_report(loss_stats, scores, success_descs, failure_descs)
     write_summary(loss_stats, scores, len(image_names))
 
     print(f"\nDone. Assets in: {ASSETS_DIR}")
-    print("\nStill to do manually (3 things):")
-    print("  1. Upload loss_curve.png + qualitative_examples.png to Overleaf")
-    print("     (next to report.tex in the report/ folder)")
-    print("  2. Fill in author names + matriculation numbers in report.tex")
-    print("  3. Adjust Division of Work if needed, then compile and export PDF")
+    print("\nIf the report needs refreshing, copy the summary values and figures")
+    print("into report/neurips_2026.tex, then compile report/neurips_2026.pdf.")
 
 
 if __name__ == "__main__":
